@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Gerenciamento de Insumos de TI",
+  "description": "Aplicativo para gerenciamento de insumos de TI com interface gráfica inspirada no site Catarinense Pharma. Esta é a Fase 1, implementando a tela de Login e a estrutura do Dashboard.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
