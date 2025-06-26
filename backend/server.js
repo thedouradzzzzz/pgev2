@@ -1,11 +1,9 @@
-require('dotenv').config();  // <-- SUA NOVA LINHA!
+require('dotenv').config();
 
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./src/config/database');
-// ... e o resto do arquivo
-
 
 // Conectar ao banco de dados
 //connectDB();
@@ -20,6 +18,7 @@ const saidaEstoqueRoutes = require('./src/routes/saidaEstoqueRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const assetRoutes = require('./src/routes/assetRoutes');
 const descriptorRoutes = require('./src/routes/descriptorRoutes');
+const logRoutes = require('./src/routes/logRoutes'); // <-- ADICIONADO
 
 const app = express();
 
@@ -37,14 +36,15 @@ app.use('/api/saidas', saidaEstoqueRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/descriptors', descriptorRoutes);
+app.use('/api/logs', logRoutes); // <-- ADICIONADO
 
 // Rota de teste
 app.get('/', (req, res) => {
-  res.send('API do Gerenciamento de Estoque est� rodando...');
+  res.send('API do Gerenciamento de Estoque está rodando...');
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`--- ESTOU EXECUTANDO O ARQUIVO CORRETO --- Servidor na porta ${PORT}`); // <-- MUDANÇA AQUI
 });

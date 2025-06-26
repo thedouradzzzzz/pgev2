@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const pool = require('../config/database'); 
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -7,24 +7,36 @@ exports.protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-senha');
-      if (!req.user) {
-        return res.status(401).json({ success: false, message: 'Usu·rio n„o encontrado.' });
+      
+      const [users] = await pool.query(
+        'SELECT id, name, email, role FROM users WHERE id = ?', 
+        [decoded.id]
+      );
+      
+      if (users.length === 0) {
+        return res.status(401).json({ success: false, message: 'N√£o autorizado, usu√°rio do token n√£o existe mais.' });
       }
+      
+      req.user = users[0];
       next();
     } catch (error) {
-      return res.status(401).json({ success: false, message: 'N„o autorizado, token inv·lido.' });
+      console.error("Erro no middleware 'protect':", error);
+      return res.status(401).json({ success: false, message: 'N√£o autorizado, token inv√°lido ou expirado.' });
     }
   }
+
   if (!token) {
-    return res.status(401).json({ success: false, message: 'N„o autorizado, sem token.' });
+    return res.status(401).json({ success: false, message: 'N√£o autorizado, nenhum token fornecido.' });
   }
 };
 
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.cargo)) {
-      return res.status(403).json({ success: false, message: "O usu√°rio com este cargo n√£o tem permiss√£o para acessar esta rota." });
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Acesso negado. A rota requer um dos seguintes cargos: ${roles.join(', ')}.` 
+      });
     }
     next();
   };

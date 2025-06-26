@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getAllProducts, createProduct } = require('../controllers/produtoController');
+const { getAllProducts, createProduct, updateProductQuantity } = require('../controllers/produtoController');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 
-// Rota para listar todos os produtos (GET /api/produtos)
-router.get('/', getAllProducts);
-
-// Rota para criar um novo produto (POST /api/produtos)
-router.post('/', createProduct);
+router.get('/', protect, getAllProducts);
+router.post('/', protect, authorize('admin'), createProduct);
+router.patch('/:id/quantity', protect, updateProductQuantity);
 
 module.exports = router;

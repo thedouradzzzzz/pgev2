@@ -1,25 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import type { Product, AddQuantityFormData, SubtractQuantityFormData } from '../../types'; 
-import { COMPANY_OPTIONS } from '../../constants'; // Still used for filter options if Fornecedor names map to these
+import type { Product, Category, Fornecedor } from '../../types'; // Adicionado Category e Fornecedor
 import AddQuantityModal from '../../components/products/AddQuantityModal';
 import SubtractQuantityModal from '../../components/products/SubtractQuantityModal';
 import { PlusIcon, MinusIcon } from '../../components/icons/Icons';
 
 interface ProductSearchPageProps {
   products: Product[];
-  productTypes: string[]; // These are categoryNames from Category objects
-  onUpdateQuantity: (productId: string, amountChange: number, details: { priceCost?: number; reason?: SubtractQuantityFormData['reason'] }) => void;
+  categories: Category[]; // Alterado de string[] para Category[]
+  fornecedores: Fornecedor[]; // Adicionado fornecedores
+  onUpdateQuantity: (productId: string, amountChange: number, details: { purchaseOrderNumber?: string; destinationAsset?: string }) => void;
 }
 
-const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, productTypes, onUpdateQuantity }) => {
+const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categories, fornecedores, onUpdateQuantity }) => {
   const [filters, setFilters] = useState({
-    name: '', 
-    categoryName: '', 
+    name: '',
+    categoryName: '',
     description: '',
     barcode: '',
-    fornecedorName: '', 
-    priceMin: '',
-    priceMax: '',
+    fornecedorName: '',
+    empresa: '',
   });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -34,16 +33,13 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, product
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      const priceMin = parseFloat(filters.priceMin);
-      const priceMax = parseFloat(filters.priceMax);
       return (
         (filters.name ? product.name.toLowerCase().includes(filters.name.toLowerCase()) : true) &&
         (filters.categoryName ? product.categoryName === filters.categoryName : true) &&
         (filters.description ? (product.description || '').toLowerCase().includes(filters.description.toLowerCase()) : true) &&
         (filters.barcode ? (product.barcode || '').toLowerCase().includes(filters.barcode.toLowerCase()) : true) &&
         (filters.fornecedorName ? product.fornecedorName === filters.fornecedorName : true) &&
-        (filters.priceMin ? product.price >= priceMin : true) &&
-        (filters.priceMax ? product.price <= priceMax : true)
+        (filters.empresa ? product.empresa === filters.empresa : true)
       );
     });
   }, [products, filters]);
@@ -63,25 +59,28 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, product
     setIsSubtractModalOpen(false);
     setSelectedProduct(null);
   };
-
-  const handleConfirmAddQuantity = (data: Omit<AddQuantityFormData, 'productId'>) => { 
-    if (selectedProduct) {
-      onUpdateQuantity(selectedProduct.id, data.quantity, { priceCost: data.priceCost });
-    }
-    closeModal();
-  };
-
-  const handleConfirmSubtractQuantity = (data: Omit<SubtractQuantityFormData, 'productId'>) => {
-    if (selectedProduct) {
-      onUpdateQuantity(selectedProduct.id, -data.quantity, { reason: data.reason });
-    }
-    closeModal();
-  };
   
-  const clearFilters = () => {
-    setFilters({ name: '', categoryName: '', description: '', barcode: '', fornecedorName: '', priceMin: '', priceMax: '' });
+  const handleConfirmAddQuantity = (data: { quantity: number; purchaseOrderNumber: string }) => {
+    if (selectedProduct) {
+      onUpdateQuantity(selectedProduct.id, data.quantity, { purchaseOrderNumber: data.purchaseOrderNumber });
+    }
+    closeModal();
   };
 
+  const handleConfirmSubtractQuantity = (data: { quantity: number; destinationAsset: string }) => {
+    if (selectedProduct) {
+      onUpdateQuantity(selectedProduct.id, -data.quantity, { destinationAsset: data.destinationAsset });
+    }
+    closeModal();
+  };
+
+  const clearFilters = () => {
+    setFilters({ name: '', categoryName: '', description: '', barcode: '', fornecedorName: '', empresa: '' });
+  };
+
+  // CORREÇÃO: Ordenar as listas para os dropdowns
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.name.localeCompare(b.name)), [categories]);
+  const sortedFornecedores = useMemo(() => [...fornecedores].sort((a, b) => a.name.localeCompare(b.name)), [fornecedores]);
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg">
@@ -92,35 +91,39 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, product
           <input type="text" name="name" placeholder="Nome do Produto" value={filters.name} onChange={handleFilterChange} className={inputBaseClasses}/>
           <select name="categoryName" value={filters.categoryName} onChange={handleFilterChange} className={inputBaseClasses}>
             <option value="">Todas as Categorias</option>
-            {productTypes.map(typeName => <option key={typeName} value={typeName}>{typeName}</option>)}
+            {sortedCategories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
           </select>
           <input type="text" name="description" placeholder="Descrição" value={filters.description} onChange={handleFilterChange} className={inputBaseClasses}/>
           <input type="text" name="barcode" placeholder="Código de Barras" value={filters.barcode} onChange={handleFilterChange} className={inputBaseClasses}/>
           <select name="fornecedorName" value={filters.fornecedorName} onChange={handleFilterChange} className={inputBaseClasses}>
             <option value="">Todos os Fornecedores</option>
-            {COMPANY_OPTIONS.map(opt => <option key={opt.value} value={opt.label}>{opt.label}</option>)} 
-            {/* Consider populating this from actual Fornecedor names if they don't map to CompanyEnum */}
+            {sortedFornecedores.map(forn => <option key={forn.id} value={forn.name}>{forn.name}</option>)}
           </select>
-          <input type="number" name="priceMin" placeholder="Preço Mín." value={filters.priceMin} onChange={handleFilterChange} className={inputBaseClasses} min="0" step="0.01"/>
-          <input type="number" name="priceMax" placeholder="Preço Máx." value={filters.priceMax} onChange={handleFilterChange} className={inputBaseClasses} min="0" step="0.01"/>
-          <button 
+          
+          <select name="empresa" value={filters.empresa} onChange={handleFilterChange} className={inputBaseClasses}>
+            <option value="">Todas as Empresas</option>
+            <option value="ABPlast">ABPlast</option>
+            <option value="Catarinense Matriz">Catarinense Matriz</option>
+            <option value="Catarinense Filial">Catarinense Filial</option>
+          </select>
+
+          <button
             onClick={clearFilters}
-            className="xl:col-span-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
+            className="xl:col-start-4 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
             >
             Limpar Filtros
           </button>
         </div>
       </div>
-      
 
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome do Produto</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fornecedor</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço (R$)</th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qtd.</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cód. Barras</th>
@@ -130,12 +133,10 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, product
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredProducts.map(product => (
               <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{product.categoryName}</td>
+                <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{product.name}</div></td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{product.empresa}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{product.categoryName || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{product.fornecedorName || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{product.price.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-semibold text-center">{product.quantity}</td>
                 <td className="px-6 py-4 whitespace-normal text-sm text-gray-500 max-w-xs truncate" title={product.description}>{product.description}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.barcode || 'N/A'}</td>
@@ -149,26 +150,13 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, product
         </table>
       </div>
       {filteredProducts.length === 0 && (
-        <div className="text-center py-10 text-gray-500">
-          Nenhum produto encontrado com os filtros atuais.
-        </div>
+        <div className="text-center py-10 text-gray-500">Nenhum produto encontrado com os filtros atuais.</div>
       )}
 
       {selectedProduct && (
         <>
-          <AddQuantityModal 
-            isOpen={isAddModalOpen} 
-            onClose={closeModal} 
-            onConfirmAdd={(data) => handleConfirmAddQuantity(data)} // Pass productId inside handler
-            productName={selectedProduct.name} 
-          />
-          <SubtractQuantityModal 
-            isOpen={isSubtractModalOpen} 
-            onClose={closeModal} 
-            onConfirmSubtract={(data) => handleConfirmSubtractQuantity(data)} // Pass productId inside handler
-            productName={selectedProduct.name}
-            currentQuantity={selectedProduct.quantity}
-          />
+          <AddQuantityModal isOpen={isAddModalOpen} onClose={closeModal} onConfirmAdd={handleConfirmAddQuantity} productName={selectedProduct.name} />
+          <SubtractQuantityModal isOpen={isSubtractModalOpen} onClose={closeModal} onConfirmSubtract={handleConfirmSubtractQuantity} productName={selectedProduct.name} currentQuantity={selectedProduct.quantity} />
         </>
       )}
     </div>

@@ -1,36 +1,37 @@
 import React, { useState } from 'react';
 import Modal from '../common/Modal';
-import type { SubtractQuantityFormData } from '../../types'; // For onConfirmSubtract prop
+// === ALTERAÇÃO 1: A prop onConfirmSubtract agora espera 'destinationAsset' ===
+import type { SubtractQuantityFormData } from '../../types';
 
-// Local interface for this modal's form data
+// === ALTERAÇÃO 2: Atualizado o estado local do formulário ===
 interface SubtractQuantityModalFormState {
-  amount: number | string; // Allow string for input field
-  reason: SubtractQuantityFormData['reason'];
-  // destinationAssetId and ticketNumber are not part of backend SaidaEstoque directly
+  amount: number | string;
+  destinationAsset: string; // Trocado de 'reason' para 'destinationAsset'
 }
 
 interface SubtractQuantityModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirmSubtract: (data: SubtractQuantityFormData) => void; 
+  onConfirmSubtract: (data: Omit<SubtractQuantityFormData, 'productId' | 'reason'> & { destinationAsset: string }) => void;
   productName: string;
   currentQuantity: number;
 }
 
 const SubtractQuantityModal: React.FC<SubtractQuantityModalProps> = ({ isOpen, onClose, onConfirmSubtract, productName, currentQuantity }) => {
+  // === ALTERAÇÃO 3: Estado inicial atualizado ===
   const [formData, setFormData] = useState<SubtractQuantityModalFormState>({
     amount: 1,
-    reason: 'Ajuste', // Default reason
+    destinationAsset: '',
   });
   const [error, setError] = useState<string | null>(null);
 
   const inputBaseClasses = "mt-1 block w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -44,19 +45,21 @@ const SubtractQuantityModal: React.FC<SubtractQuantityModalProps> = ({ isOpen, o
       setError(`A quantidade a subtrair (${numAmount}) não pode ser maior que a quantidade atual (${currentQuantity}).`);
       return;
     }
-    if (!formData.reason) {
-      setError('O motivo da saída é obrigatório.');
+    // === ALTERAÇÃO 4: Validação para o novo campo ===
+    if (!formData.destinationAsset.trim()) {
+      setError('O ativo de destino é obrigatório.');
       return;
     }
 
-    onConfirmSubtract({ 
-        productId: '', // productId will be injected by the calling component
-        quantity: numAmount, 
-        reason: formData.reason 
+    // === ALTERAÇÃO 5: Passando o dado correto para a função de confirmação ===
+    onConfirmSubtract({
+        quantity: numAmount,
+        destinationAsset: formData.destinationAsset
     });
-    setFormData({ amount: 1, reason: 'Ajuste' }); 
+    // Limpa o formulário
+    setFormData({ amount: 1, destinationAsset: '' });
   };
-  
+
   const modalFooter = (
     <>
       <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">Cancelar</button>
@@ -71,32 +74,29 @@ const SubtractQuantityModal: React.FC<SubtractQuantityModalProps> = ({ isOpen, o
         <p className="text-sm text-gray-600">Quantidade atual em estoque: <span className="font-semibold">{currentQuantity}</span></p>
         <div>
           <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Quantidade a Subtrair</label>
-          <input 
-            type="number" 
-            name="amount" 
-            id="amount" 
-            value={formData.amount} 
+          <input
+            type="number"
+            name="amount"
+            id="amount"
+            value={formData.amount}
             onChange={handleChange}
-            min="1" 
-            max={currentQuantity} // Can't subtract more than available
-            required 
+            min="1"
+            max={currentQuantity}
+            required
             className={inputBaseClasses}/>
         </div>
+        {/* === ALTERAÇÃO 6: Campo de formulário completamente alterado de select para input de texto === */}
         <div>
-          <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Motivo da Saída</label>
-          <select 
-            name="reason" 
-            id="reason" 
-            value={formData.reason} 
-            onChange={handleChange} 
-            required 
-            className={inputBaseClasses}
-          >
-            <option value="Venda">Venda</option>
-            <option value="Ajuste">Ajuste de Estoque</option>
-            <option value="Perda">Perda / Dano</option>
-            <option value="Outro">Outro</option>
-          </select>
+          <label htmlFor="destinationAsset" className="block text-sm font-medium text-gray-700">Ativo de Destino</label>
+          <input
+            type="text"
+            name="destinationAsset"
+            id="destinationAsset"
+            value={formData.destinationAsset}
+            onChange={handleChange}
+            required
+            placeholder="Ex: Notebook DELL-1234, Servidor HPE-5678"
+            className={inputBaseClasses}/>
         </div>
       </form>
     </Modal>
