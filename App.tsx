@@ -312,14 +312,12 @@ const App: React.FC = () => {
     }
   };
 
-  // <-- FUNÇÃO ADICIONADA -->
   const handleEditCategory = async (id: string, name: string, description?: string): Promise<boolean> => {
     try {
         const response = await apiService.updateCategory(id, { name, description });
         if (response.success && response.data) {
             setCategories(prev => prev.map(c => c.id === id ? response.data : c).sort((a,b) => a.name.localeCompare(b.name)));
             showToast('Categoria atualizada com sucesso!', 'success');
-            // Adicione um log se desejar
             return true;
         }
         throw new Error(response.message || 'Falha ao atualizar categoria.');
@@ -329,14 +327,12 @@ const App: React.FC = () => {
     }
   };
   
-  // <-- FUNÇÃO ADICIONADA -->
   const handleEditFornecedor = async (id: string, name: string, contact_info?: string): Promise<boolean> => {
     try {
         const response = await apiService.updateFornecedor(id, { name, contact_info });
         if (response.success && response.data) {
             setFornecedores(prev => prev.map(f => f.id === id ? response.data : f).sort((a,b) => a.name.localeCompare(b.name)));
             showToast('Fornecedor atualizado com sucesso!', 'success');
-            // Adicione um log se desejar
             return true;
         }
         throw new Error(response.message || 'Falha ao atualizar fornecedor.');
@@ -382,12 +378,30 @@ const App: React.FC = () => {
       if (response.success && response.data) {
         setProducts(prevProducts => [...prevProducts, response.data].sort((a, b) => a.name.localeCompare(b.name)));
         showToast(`Produto '${response.data.name}' cadastrado com sucesso!`, 'success');
-        addLog(LogEntryActionType.PRODUCT_CREATED, `Produto '${response.data.name}' foi cadastrado.`);
       } else {
         throw new Error(response.message || 'Falha ao cadastrar o produto.');
       }
     } catch (err: any) {
       showToast(`Erro ao cadastrar produto: ${err.message}`, 'error');
+    }
+  };
+  
+  // <-- FUNÇÃO ADICIONADA -->
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm('Tem certeza que deseja deletar este produto? Esta ação é irreversível.')) {
+        return;
+    }
+    try {
+      const response = await apiService.deleteProduct(productId);
+      if (response.success) {
+        setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+        showToast('Produto deletado com sucesso.', 'success');
+        // O log já é criado no backend, não precisa chamar addLog aqui.
+      } else {
+        throw new Error(response.message || 'Falha ao deletar o produto.');
+      }
+    } catch (err: any) {
+      showToast(`Erro ao deletar produto: ${err.message}`, 'error');
     }
   };
 
@@ -434,12 +448,12 @@ const App: React.FC = () => {
             <>
               <Route index element={<MainDashboardPage products={products} assets={assets} />} />
               <Route path="users" element={currentUser?.isAdmin ? <UserManagementPage users={appUsers} onAddUser={handleAddUser} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} onResetPassword={handleResetPasswordByAdmin} /> : <Navigate to="/dashboard" />} />
-              <Route path="products/search" element={<ProductSearchPage products={products} categories={categories} fornecedores={fornecedores} onUpdateQuantity={handleUpdateQuantity} />} />
+              {/* ATUALIZADO AQUI */}
+              <Route path="products/search" element={<ProductSearchPage products={products} categories={categories} fornecedores={fornecedores} onUpdateQuantity={handleUpdateQuantity} onDeleteProduct={handleDeleteProduct} currentUser={currentUser} />} />
               <Route path="products/add" element={currentUser?.isAdmin ? <ProductAddPage products={products} categories={categories} fornecedores={fornecedores} onAddProduct={handleAddProduct} /> : <Navigate to="/dashboard" />} />
               <Route path="assets" element={<AssetManagementPage assets={assets} users={appUsers} onDeleteAsset={handleDeleteAsset} onDataNeedsRefresh={fetchData} />} />
               <Route path="assets/add" element={<AssetAddPage users={appUsers} onAddAsset={handleAddAsset} />} />
               <Route path="assets/edit/:assetId" element={<AssetEditPage assets={assets} users={appUsers} onUpdateAsset={handleUpdateAsset}/>} />
-              {/* ATUALIZADO AQUI */}
               <Route path="product-types" element={currentUser?.isAdmin ? <ProductTypeManagementPage categories={categories} fornecedores={fornecedores} onAddProductType={handleAddCategory} onEditProductType={handleEditCategory} onDeleteProductType={handleDeleteCategory} onAddFornecedor={handleAddFornecedor} onEditFornecedor={handleEditFornecedor} onDeleteFornecedor={handleDeleteFornecedor} /> : <Navigate to="/dashboard" />} />
               <Route path="logs" element={<MovementLogsPage logs={logs} />} />
               <Route path="reports" element={<ReportsDashboardPage products={products} assets={assets} />} />

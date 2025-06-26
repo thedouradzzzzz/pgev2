@@ -103,6 +103,7 @@ export const forceChangePassword = async (userId: string, newPassword_param: str
 export const fetchProducts = async (): Promise<ApiSuccessData<Product[]>> => request<Product[]>(`/produtos`, 'GET');
 export const createProduct = async (productData: Omit<ProductFormData, 'price'> & { empresa: string }): Promise<ApiSuccessData<Product>> => request<Product>('/produtos', 'POST', productData);
 export const updateProductQuantity = async (productId: string, amountChange: number, details: any): Promise<ApiSuccessData<Product>> => request<Product>(`/produtos/${productId}/quantity`, 'PATCH', { amountChange, details });
+export const deleteProduct = async (productId: string): Promise<ApiSuccessData<null>> => request<null>(`/produtos/${productId}`, 'DELETE');
 
 // --- Assets ---
 export const fetchAssets = async (): Promise<ApiSuccessData<Asset[]>> => request<Asset[]>(`/assets`, 'GET');
@@ -159,16 +160,17 @@ const apiService = {
   fetchProducts,
   createProduct,
   updateProductQuantity,
+  deleteProduct, // <-- ADICIONADO
   fetchAssets,
   deleteAsset,
   importAssetsCSV,
   fetchCategories,
   createCategory,
-  updateCategory, // <-- ADICIONADO
+  updateCategory,
   deleteCategory,
   fetchFornecedores,
   createFornecedor,
-  updateFornecedor, // <-- ADICIONADO
+  updateFornecedor,
   deleteFornecedor,
   fetchLogs,
   createLog,

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Asset, AppUser } from '../../types';
-import { PlusIcon, PencilIcon, TrashIcon, UploadIcon } from '../../components/icons/Icons';
+// PencilIcon foi removido das importações
+import { PlusIcon, TrashIcon, UploadIcon } from '../../components/icons/Icons';
 import ImportAssetsModal from '../../components/assets/ImportAssetsModal';
 import apiService from '../../src/services/apiService';
 
@@ -11,6 +12,8 @@ interface AssetManagementPageProps {
   onDeleteAsset: (assetId: string) => void;
   onDataNeedsRefresh: () => void;
 }
+
+const ITEMS_PER_PAGE = 15;
 
 const AssetManagementPage: React.FC<AssetManagementPageProps> = ({ assets, users, onDeleteAsset, onDataNeedsRefresh }) => {
   const navigate = useNavigate();
@@ -23,16 +26,29 @@ const AssetManagementPage: React.FC<AssetManagementPageProps> = ({ assets, users
     modelo: '',
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentPage(1); // Reseta para a primeira página ao filtrar
     setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
-
-  const filteredAssets = assets.filter(asset =>
+  
+  // useMemo re-adicionado para otimização
+  const filteredAssets = useMemo(() => {
+    return assets.filter(asset =>
       (filters.nome ? (asset.nome || '').toLowerCase().includes(filters.nome.toLowerCase()) : true) &&
       (filters.fabricante ? (asset.fabricante || '').toLowerCase().includes(filters.fabricante.toLowerCase()) : true) &&
       (filters.numero_serie ? (asset.numero_serie || '').toLowerCase().includes(filters.numero_serie.toLowerCase()) : true) &&
       (filters.modelo ? (asset.modelo || '').toLowerCase().includes(filters.modelo.toLowerCase()) : true)
-  );
+    );
+  }, [assets, filters]);
+
+  // Lógica de paginação re-adicionada
+  const totalPages = Math.ceil(filteredAssets.length / ITEMS_PER_PAGE);
+  const paginatedAssets = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAssets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAssets, currentPage]);
 
   const handleImport = async (file: File) => {
     try {
@@ -83,7 +99,7 @@ const AssetManagementPage: React.FC<AssetManagementPageProps> = ({ assets, users
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredAssets.map((asset) => (
+            {paginatedAssets.map((asset) => (
               <tr key={asset.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{asset.nome || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.fabricante || 'N/A'}</td>
@@ -91,7 +107,6 @@ const AssetManagementPage: React.FC<AssetManagementPageProps> = ({ assets, users
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.modelo || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title={asset.localizacao || ''}>{asset.localizacao || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  {/* Botão de editar foi removido, como solicitado */}
                   <button onClick={() => onDeleteAsset(String(asset.id))} title="Excluir" className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-100"><TrashIcon className="h-5 w-5"/></button>
                 </td>
               </tr>
@@ -104,6 +119,15 @@ const AssetManagementPage: React.FC<AssetManagementPageProps> = ({ assets, users
           </div>
         )}
       </div>
+
+      {/* Paginação re-adicionada */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Anterior</button>
+            <span className="text-sm text-gray-700">Página {currentPage} de {totalPages}</span>
+            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Próxima</button>
+        </div>
+      )}
 
       <ImportAssetsModal
         isOpen={isImportModalOpen}

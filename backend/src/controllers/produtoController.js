@@ -30,16 +30,13 @@ const createProduct = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Empresa inválida.' });
   }
   try {
-    // ATENÇÃO: Se a coluna 'barcode' não existir na tabela 'produtos', esta query falhará.
-    // Adicionaremos a coluna barcode em uma etapa futura do nosso plano.
     const sql = 'INSERT INTO produtos (name, description, empresa, quantity, categoria_id, fornecedor_id, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)';
     const [result] = await pool.query(sql, [name, description, empresa, 0, categoria_id || null, fornecedor_id || null, barcode || null]);
 
-    // Log de criação de produto no console
     if (req.user && req.user.id) {
         console.log(`LOG: Produto '${name}' cadastrado na empresa '${empresa}' pelo usuário ID: ${req.user.id}`);
     }
-    
+
     const [newProduct] = await pool.query(`
       SELECT
         p.*,
@@ -54,8 +51,7 @@ const createProduct = async (req, res) => {
     if (newProduct.length === 0) {
       return res.status(404).json({ success: false, message: 'Produto criado mas não encontrado para retorno.'})
     }
-    
-    // Log de criação no banco de dados
+
     await pool.query(
       'INSERT INTO logs (user_id, username, action_type, description, details) VALUES (?, ?, ?, ?, ?)',
       [
@@ -76,8 +72,8 @@ const createProduct = async (req, res) => {
 
 const updateProductQuantity = async (req, res) => {
   const { id } = req.params;
-  const { amountChange, details } = req.body; // details pode conter { purchaseOrderNumber, destinationAsset }
-  const user = req.user; // Usuário que está fazendo a ação
+  const { amountChange, details } = req.body;
+  const user = req.user;
 
   if (typeof amountChange !== 'number' || amountChange === 0) {
     return res.status(400).json({ success: false, message: 'A mudança na quantidade deve ser um número diferente de zero.' });
@@ -95,7 +91,6 @@ const updateProductQuantity = async (req, res) => {
     }
     const product = products[0];
 
-    // Se for uma SUBTRAÇÃO, valida o ativo de destino
     let destinationAssetInfo = null;
     if (amountChange < 0) {
       if (!details || !details.destinationAsset) {
@@ -122,7 +117,6 @@ const updateProductQuantity = async (req, res) => {
     
     await connection.query('UPDATE produtos SET quantity = ? WHERE id = ?', [newQuantity, id]);
 
-    // INÍCIO DA LÓGICA DE LOG ENRIQUECIDO
     const logActionType = 'INVENTORY_UPDATED';
     let logDescription = '';
     const logDetails = {
@@ -150,7 +144,6 @@ const updateProductQuantity = async (req, res) => {
             JSON.stringify(logDetails)
         ]
     );
-    // FIM DA LÓGICA DE LOG
 
     await connection.commit();
 
@@ -175,8 +168,47 @@ const updateProductQuantity = async (req, res) => {
   }
 };
 
+// --- FUNÇÃO ADICIONADA ---
+const deleteProduct = async (req, res) => {
+    const { id } = req.params;
+    const user = req.user;
+
+    try {
+        // Primeiro, busca o produto para logar as informações antes de deletar
+        const [[product]] = await pool.query('SELECT * FROM produtos WHERE id = ?', [id]);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Produto não encontrado.' });
+        }
+
+        // Executa a deleção
+        const [result] = await pool.query('DELETE FROM produtos WHERE id = ?', [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Produto não encontrado.' });
+        }
+
+        // Cria o log da exclusão
+        await pool.query(
+            'INSERT INTO logs (user_id, username, action_type, description, details) VALUES (?, ?, ?, ?, ?)',
+            [
+                user.id,
+                user.name,
+                'PRODUCT_DELETED',
+                `Produto '${product.name}' (ID: ${product.id}) foi deletado.`,
+                JSON.stringify(product)
+            ]
+        );
+
+        res.json({ success: true, message: 'Produto deletado com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao deletar produto:', error);
+        res.status(500).json({ success: false, message: 'Erro no servidor ao deletar produto.' });
+    }
+};
+
 module.exports = {
   getAllProducts,
   createProduct,
-  updateProductQuantity
+  updateProductQuantity,
+  deleteProduct // <-- EXPORTADO
 };

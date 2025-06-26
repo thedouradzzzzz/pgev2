@@ -79,9 +79,9 @@ export interface Asset {
   assignedToUsername?: string;
   localizacao?: string;
   purchaseDate?: Date;
-  fabricante?: string; // Adicionado para consistência com o backend
-  numero_serie?: string; // Adicionado para consistência com o backend
-  modelo?: string; // Adicionado para consistência com o backend
+  fabricante?: string;
+  numero_serie?: string;
+  modelo?: string;
 }
 
 export interface AssetFormData {
@@ -110,6 +110,7 @@ export enum LogEntryActionType {
   USER_DELETED = 'Usuário Deletado',
   USER_CREATE_FAIL = 'Falha ao Criar Usuário',
   PRODUCT_CREATED = 'Produto Criado',
+  PRODUCT_DELETED = 'Produto Deletado', // <-- ADICIONADO
   INVENTORY_UPDATED = 'Estoque Atualizado',
   ASSET_CREATED = 'Ativo Criado',
   ASSET_UPDATED = 'Ativo Atualizado',

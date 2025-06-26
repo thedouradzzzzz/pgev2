@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import type { Product, Category, Fornecedor } from '../../types'; // Adicionado Category e Fornecedor
+import type { Product, Category, Fornecedor, User } from '../../types';
 import AddQuantityModal from '../../components/products/AddQuantityModal';
 import SubtractQuantityModal from '../../components/products/SubtractQuantityModal';
-import { PlusIcon, MinusIcon } from '../../components/icons/Icons';
+import { PlusIcon, MinusIcon, TrashIcon } from '../../components/icons/Icons';
 
 interface ProductSearchPageProps {
   products: Product[];
-  categories: Category[]; // Alterado de string[] para Category[]
-  fornecedores: Fornecedor[]; // Adicionado fornecedores
+  categories: Category[];
+  fornecedores: Fornecedor[];
+  currentUser: User | null; // <-- Adicionado para verificar se é admin
   onUpdateQuantity: (productId: string, amountChange: number, details: { purchaseOrderNumber?: string; destinationAsset?: string }) => void;
+  onDeleteProduct: (productId: string) => void; // <-- Adicionado
 }
 
-const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categories, fornecedores, onUpdateQuantity }) => {
+const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categories, fornecedores, currentUser, onUpdateQuantity, onDeleteProduct }) => {
   const [filters, setFilters] = useState({
     name: '',
     categoryName: '',
@@ -78,7 +80,6 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categor
     setFilters({ name: '', categoryName: '', description: '', barcode: '', fornecedorName: '', empresa: '' });
   };
 
-  // CORREÇÃO: Ordenar as listas para os dropdowns
   const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.name.localeCompare(b.name)), [categories]);
   const sortedFornecedores = useMemo(() => [...fornecedores].sort((a, b) => a.name.localeCompare(b.name)), [fornecedores]);
 
@@ -127,7 +128,7 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categor
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qtd.</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cód. Barras</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações de Qtd.</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -142,7 +143,10 @@ const ProductSearchPage: React.FC<ProductSearchPageProps> = ({ products, categor
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.barcode || 'N/A'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   <button onClick={() => openAddQuantityModal(product)} title="Adicionar Quantidade" className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-100 transition"><PlusIcon className="h-5 w-5"/></button>
-                  <button onClick={() => openSubtractQuantityModal(product)} title="Subtrair Quantidade" className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-100 transition" disabled={product.quantity === 0}><MinusIcon className="h-5 w-5"/></button>
+                  <button onClick={() => openSubtractQuantityModal(product)} title="Subtrair Quantidade" className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-100 transition" disabled={product.quantity === 0}><MinusIcon className="h-5 w-5"/></button>
+                  {currentUser?.isAdmin && (
+                    <button onClick={() => onDeleteProduct(product.id)} title="Excluir Produto" className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-100 transition"><TrashIcon className="h-5 w-5"/></button>
+                  )}
                 </td>
               </tr>
             ))}
